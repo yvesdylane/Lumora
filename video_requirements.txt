@@ -1,0 +1,13 @@
+# Video module requirements for merge
+#
+# No new pip packages needed — video module uses subprocess calls to ffmpeg.
+#
+# Files to merge from other branches:
+# - models/asset.py (from assets branch)
+# - core/assets/assets.py (from assets branch)
+# - pyproject.toml (already on main)
+# - .python-version (already on main)
+#
+# System requirements:
+# - ffmpeg with libx264 support (full build, not ffmpeg-free)
+# - ffprobe (comes with ffmpeg)
