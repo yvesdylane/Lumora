@@ -11,3 +11,14 @@ dependencies = [
     "python-multipart>=0.0.32",
     "uvicorn[standard]>=0.51.0",
 ]
+
+[tool.setuptools.packages.find]
+include = ["core*", "models*", "routes*", "controllers*", "middlewares*", "utils*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
