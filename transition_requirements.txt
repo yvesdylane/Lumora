@@ -1,0 +1,18 @@
+# Transition module requirements for merge
+#
+# No new pip packages needed — transitions use subprocess calls to ffmpeg.
+#
+# Files to merge from other branches:
+# - models/asset.py (from assets branch)
+# - core/assets/assets.py (from assets branch)
+# - pyproject.toml (already on main)
+# - .python-version (already on main)
+#
+# System requirements:
+# - ffmpeg with xfade filter support (ffmpeg 4.3+)
+# - ffprobe (comes with ffmpeg)
+#
+# Adding a new transition:
+# 1. Create core/media/transitions/<name>.py with a run() function
+# 2. Register it in core/media/transitions/registry.py _TRANSITIONS dict
+# 3. That's it — no other files need to change
