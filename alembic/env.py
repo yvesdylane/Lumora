@@ -1,6 +1,9 @@
 import asyncio
+import os
 from logging.config import fileConfig
+from pathlib import Path
 
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
@@ -9,7 +12,13 @@ from alembic import context
 from core.database import Base
 from core.timeline.models import ProjectRow  # noqa: F401 — ensure model is registered
 
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 config = context.config
+
+dbUrl = os.getenv("DATABASE_URL")
+if dbUrl:
+    config.set_main_option("sqlalchemy.url", dbUrl)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
