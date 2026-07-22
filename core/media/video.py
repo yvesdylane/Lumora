@@ -93,9 +93,9 @@ def cutVideo(asset: Asset, start: float, end: float) -> Asset:
     subprocess.run(
         [
             "ffmpeg", "-y",
-            "-i", str(src),
             "-ss", str(start),
             "-to", str(end),
+            "-i", str(src),
             "-c", "copy",
             "-avoid_negative_ts", "make_zero",
             str(out),
