@@ -11,6 +11,7 @@ from alembic import context
 
 from core.database import Base
 from core.timeline.models import ProjectRow  # noqa: F401 — ensure model is registered
+from core.jobs.models import JobRow  # noqa: F401
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
