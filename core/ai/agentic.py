@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Callable, Literal
+from typing import Any, Callable, Literal
 
 from models.asset import Asset
 
@@ -102,10 +102,11 @@ def decide(run: AgenticRun) -> Literal["store", "retry", "escalate"]:
 
 
 async def runAgenticLoop(
-    generateFn: Callable[..., Asset],
+    generateFn: Callable[..., Any],
     jobArgs: dict,
     expected: dict | None = None,
     maxAttempts: int = 3,
+    onAttempt: Callable[[int, AgenticRun], Any] | None = None,
 ) -> AgenticResult:
     runs: list[AgenticRun] = []
     lastAsset: Asset | None = None
@@ -126,6 +127,8 @@ async def runAgenticLoop(
                 decision="retry",
             )
             runs.append(run)
+            if onAttempt:
+                await onAttempt(attempt, run)
             continue
 
         run = runEvaluation(asset, expected)
@@ -134,6 +137,9 @@ async def runAgenticLoop(
         runs.append(run)
 
         logger.info(f"agentic attempt {attempt}: score={run.score:.2f} decision={decision}")
+
+        if onAttempt:
+            await onAttempt(attempt, run)
 
         if decision == "store":
             return AgenticResult(

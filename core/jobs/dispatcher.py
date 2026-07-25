@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
-from typing import Literal
+from typing import Any, Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from models.asset import Asset
 from models.job import GenerationJob
 from core.jobs.jobs import updateJobStatus
 from core.jobs.notifications import broadcast
@@ -57,6 +59,31 @@ async def dispatchJob(
         return failed or job
 
 
+async def dispatchJobBackground(jobId: str) -> None:
+    """Run a job dispatch in the background with a fresh DB session."""
+    from core.database import asyncSession
+    from core.jobs.jobs import getJob
+
+    async with asyncSession() as session:
+        job = await getJob(session, jobId)
+        if not job:
+            logger.error(f"Background dispatch: job {jobId} not found")
+            return
+        await dispatchJob(session, job)
+
+
+def _scheduleBackground(jobId: str) -> None:
+    """Fire-and-forget background dispatch via asyncio task."""
+    asyncio.create_task(_runBackgroundWrapper(jobId))
+
+
+async def _runBackgroundWrapper(jobId: str) -> None:
+    try:
+        await dispatchJobBackground(jobId)
+    except Exception as e:
+        logger.error(f"Background dispatch failed for job {jobId}: {e}")
+
+
 async def _dispatchTier0(job: GenerationJob) -> dict:
     from core.ai.llmClient import MockLLMClient
     from core.ai.tier0 import (
@@ -101,46 +128,95 @@ async def _dispatchTier0(job: GenerationJob) -> dict:
 
 async def _dispatchTier1(job: GenerationJob) -> dict:
     from core.ai.tier1 import generateVoiceover, generateMusic, generateImage, generateVideo
+    from core.ai.agentic import runAgenticLoop
 
     payload = _parsePayload(job.prompt)
 
-    if job.jobType == "voiceover":
-        asset = await generateVoiceover(
-            script=payload.get("script", job.prompt),
-            voiceConfig=payload.get("voiceConfig", {}),
-            model=payload.get("model"),
-        )
-    elif job.jobType == "music":
-        asset = await generateMusic(
-            prompt=job.prompt,
-            duration=payload.get("duration", 30.0),
-            model=payload.get("model"),
-        )
-    elif job.jobType == "image":
-        asset = await generateImage(
-            prompt=job.prompt,
-            model=payload.get("model"),
-            size=payload.get("size"),
-        )
-    elif job.jobType == "video":
-        asset = await generateVideo(
-            prompt=job.prompt,
-            model=payload.get("model"),
-            duration=payload.get("duration", 5.0),
-        )
-    else:
+    genFns = {
+        "voiceover": generateVoiceover,
+        "music": generateMusic,
+        "image": generateImage,
+        "video": generateVideo,
+    }
+
+    genFn = genFns.get(job.jobType)
+    if not genFn:
         raise ValueError(f"Unknown tier1 job type: {job.jobType}")
 
-    return {
-        "tier": 1,
-        "jobType": job.jobType,
-        "asset": {
-            "id": asset.id,
-            "mimeType": asset.mimeType,
-            "source": asset.source,
-            "duration": asset.duration,
-        },
-    }
+    jobArgs, expected = _buildGenArgs(job.jobType, payload, job.prompt)
+
+    async def onAttempt(attempt: int, run: Any) -> None:
+        await broadcast(job.id, {
+            "status": "running",
+            "jobId": job.id,
+            "attempt": attempt,
+            "score": run.score,
+            "decision": run.decision,
+            "checks": [
+                {"name": c.name, "passed": c.passed, "score": c.score, "detail": c.detail}
+                for c in run.checks
+            ],
+        })
+
+    agenticResult = await runAgenticLoop(
+        generateFn=genFn,
+        jobArgs=jobArgs,
+        expected=expected,
+        maxAttempts=job.maxAttempts,
+        onAttempt=onAttempt,
+    )
+
+    if agenticResult.asset:
+        return {
+            "tier": 1,
+            "jobType": job.jobType,
+            "asset": {
+                "id": agenticResult.asset.id,
+                "mimeType": agenticResult.asset.mimeType,
+                "source": agenticResult.asset.source,
+                "duration": agenticResult.asset.duration,
+            },
+            "decision": agenticResult.decision,
+            "attempts": agenticResult.attempts,
+        }
+
+    raise RuntimeError(f"Agentic loop exhausted: {agenticResult.error or 'no asset produced'}")
+
+
+def _buildGenArgs(
+    jobType: str, payload: dict, prompt: str
+) -> tuple[dict, dict | None]:
+    if jobType == "voiceover":
+        return {
+            "script": payload.get("script", prompt),
+            "voiceConfig": payload.get("voiceConfig", {}),
+            "model": payload.get("model"),
+        }, {"script": payload.get("script", prompt)}
+
+    if jobType == "music":
+        return {
+            "prompt": prompt,
+            "duration": payload.get("duration", 30.0),
+            "model": payload.get("model"),
+        }, None
+
+    if jobType == "image":
+        return {
+            "prompt": prompt,
+            "model": payload.get("model"),
+            "size": payload.get("size"),
+        }, None
+
+    if jobType == "video":
+        return {
+            "prompt": prompt,
+            "model": payload.get("model"),
+            "duration": payload.get("duration", 5.0),
+            "aspectRatio": payload.get("aspectRatio", "16:9"),
+            "quality": payload.get("quality", "720p"),
+        }, None
+
+    raise ValueError(f"Unknown job type: {jobType}")
 
 
 def _parsePayload(prompt: str) -> dict:

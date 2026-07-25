@@ -48,6 +48,28 @@ async def getJob(
     return GenerationJob.model_validate(job)
 
 
+@router.post("/{jobId}/accept", response_model=GenerationJob)
+async def acceptJob(
+    projectId: str,
+    jobId: str,
+    session: AsyncSession = Depends(getSession),
+    user: UserRow = Depends(getCurrentUser),
+):
+    job = await jobsController.acceptJob(session, projectId, jobId, str(user.id))
+    return GenerationJob.model_validate(job)
+
+
+@router.post("/{jobId}/retry", response_model=GenerationJob)
+async def retryJob(
+    projectId: str,
+    jobId: str,
+    session: AsyncSession = Depends(getSession),
+    user: UserRow = Depends(getCurrentUser),
+):
+    job = await jobsController.retryJob(session, projectId, jobId, str(user.id))
+    return GenerationJob.model_validate(job)
+
+
 @router.delete("/{jobId}", status_code=status.HTTP_204_NO_CONTENT)
 async def deleteJob(
     projectId: str,

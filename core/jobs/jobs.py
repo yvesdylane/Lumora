@@ -79,6 +79,19 @@ async def deleteJob(session: AsyncSession, jobId: str) -> bool:
     return True
 
 
+async def resetJob(session: AsyncSession, jobId: str) -> GenerationJob | None:
+    row = await session.get(JobRow, uuid.UUID(jobId))
+    if not row:
+        return None
+    row.status = "pending"
+    row.result = None
+    row.error = None
+    row.attempts = 0
+    await session.commit()
+    await session.refresh(row)
+    return _toModel(row)
+
+
 def _toModel(row: JobRow) -> GenerationJob:
     return GenerationJob(
         id=str(row.id),
