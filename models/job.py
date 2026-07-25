@@ -5,6 +5,12 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class CreateJobRequest(BaseModel):
+    tier: int
+    jobType: str
+    prompt: str = ""
+
+
 class GenerationJob(BaseModel):
     id: str
     projectId: str
