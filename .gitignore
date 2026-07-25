@@ -23,3 +23,6 @@ Thumbs.db
 
 # uv
 .uv/
+
+# Media
+*.mp4
