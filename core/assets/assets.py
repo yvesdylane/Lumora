@@ -6,23 +6,100 @@ import subprocess
 import uuid
 from pathlib import Path
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.assets.models import AssetRow
 from models.asset import Asset, MediaInfo
 
 
-def importAsset(localPath: str, projectId: str, kind: str) -> Asset:
+async def importAsset(
+    session: AsyncSession,
+    *,
+    userId: uuid.UUID,
+    projectId: uuid.UUID,
+    localPath: str,
+    kind: str,
+) -> Asset:
     path = Path(localPath)
     if not path.exists():
         raise FileNotFoundError(f"Asset not found: {localPath}")
 
     sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    mimeType = _guessMime(path, kind)
 
-    return Asset(
-        id=str(uuid.uuid4()),
+    row = AssetRow(
+        id=uuid.uuid4(),
+        user_id=userId,
+        project_id=projectId,
         source="upload",
-        mimeType=_guessMime(path, kind),
-        localPath=str(path.resolve()),
+        mime_type=mimeType,
+        local_path=str(path.resolve()),
         sha256=sha256,
     )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+
+    return _rowToAsset(row)
+
+
+async def getAsset(session: AsyncSession, assetId: uuid.UUID) -> Asset | None:
+    result = await session.execute(select(AssetRow).where(AssetRow.id == assetId))
+    row = result.scalar_one_or_none()
+    return _rowToAsset(row) if row else None
+
+
+async def searchAssets(
+    session: AsyncSession,
+    *,
+    userId: uuid.UUID,
+    projectId: uuid.UUID,
+    query: str | None = None,
+    tags: list[str] | None = None,
+) -> list[Asset]:
+    stmt = select(AssetRow).where(
+        AssetRow.user_id == userId,
+        AssetRow.project_id == projectId,
+    )
+
+    if query:
+        stmt = stmt.where(AssetRow.mime_type.ilike(f"%{query}%"))
+
+    if tags:
+        stmt = stmt.where(AssetRow.tags.overlap(tags))
+
+    result = await session.execute(stmt.order_by(AssetRow.created_at.desc()))
+    return [_rowToAsset(row) for row in result.scalars().all()]
+
+
+async def tagAsset(
+    session: AsyncSession,
+    assetId: uuid.UUID,
+    tags: list[str],
+) -> Asset | None:
+    result = await session.execute(select(AssetRow).where(AssetRow.id == assetId))
+    row = result.scalar_one_or_none()
+    if row is None:
+        return None
+
+    existing = set(row.tags or [])
+    existing.update(tags)
+    row.tags = sorted(existing)
+    await session.commit()
+    await session.refresh(row)
+    return _rowToAsset(row)
+
+
+async def deleteAsset(session: AsyncSession, assetId: uuid.UUID) -> bool:
+    result = await session.execute(select(AssetRow).where(AssetRow.id == assetId))
+    row = result.scalar_one_or_none()
+    if row is None:
+        return False
+
+    await session.delete(row)
+    await session.commit()
+    return True
 
 
 def getMediaInfo(asset: Asset) -> MediaInfo:
@@ -81,15 +158,18 @@ def getMediaInfo(asset: Asset) -> MediaInfo:
     )
 
 
-def searchAssets(query: str, tags: list[str] | None = None) -> list[Asset]:
-    # TODO: implement with DB-backed asset index
-    return []
-
-
-def tagAsset(asset: Asset, tags: list[str]) -> Asset:
-    existing = set(asset.tags)
-    existing.update(tags)
-    return asset.model_copy(update={"tags": sorted(existing)})
+def _rowToAsset(row: AssetRow) -> Asset:
+    return Asset(
+        id=str(row.id),
+        source=row.source,
+        mimeType=row.mime_type,
+        duration=float(row.duration) if row.duration else None,
+        b2Key=row.b2_key,
+        localPath=row.local_path,
+        sha256=row.sha256,
+        manifestRef=row.manifest_ref,
+        tags=row.tags or [],
+    )
 
 
 def _guessMime(path: Path, kind: str) -> str:

@@ -31,26 +31,26 @@ def write_cache_bytes(
 
 def ensure_local(asset: Asset) -> Asset:
     """
-    Ensure asset.local_path points at a readable file.
+    Ensure asset.localPath points at a readable file.
 
     Cache hit / miss:
-      local_path exists → return
-      cache hit by b2_key → return with local_path
-      else download from B2 → write cache → return
+      localPath exists -> return
+      cache hit by b2Key -> return with localPath
+      else download from B2 -> write cache -> return
     """
-    if asset.local_path and Path(asset.local_path).exists():
+    if asset.localPath and Path(asset.localPath).exists():
         return asset
 
-    if not asset.b2_key:
-        raise ValueError("Asset has no local_path or b2_key")
+    if not asset.b2Key:
+        raise ValueError("Asset has no localPath or b2Key")
 
-    cached = cache_path_for(asset.b2_key, mime_type=asset.mime_type)
+    cached = cache_path_for(asset.b2Key, mime_type=asset.mimeType)
     if cached.exists():
-        return asset.model_copy(update={"local_path": str(cached)})
+        return asset.model_copy(update={"localPath": str(cached)})
 
-    # Import here to avoid circular import with b2.download_asset → cache
+    # Import here to avoid circular import with b2.download_asset -> cache
     from core.storage.backend import get_backend
 
-    data = get_backend().get(asset.b2_key)
-    path = write_cache_bytes(asset.b2_key, data, mime_type=asset.mime_type)
-    return asset.model_copy(update={"local_path": str(path)})
+    data = get_backend().get(asset.b2Key)
+    path = write_cache_bytes(asset.b2Key, data, mime_type=asset.mimeType)
+    return asset.model_copy(update={"localPath": str(path)})

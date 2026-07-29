@@ -42,16 +42,16 @@ def write_manifest(run_id: str, manifest: dict[str, Any]) -> str:
 
 
 def get_manifest(asset: Asset) -> Manifest:
-    """Fetch and parse the Lumora manifest referenced by asset.manifest_ref."""
-    if not asset.manifest_ref:
-        raise ValueError("Asset.manifest_ref is required to get a manifest")
+    """Fetch and parse the Lumora manifest referenced by asset.manifestRef."""
+    if not asset.manifestRef:
+        raise ValueError("Asset.manifestRef is required to get a manifest")
 
-    raw = get_backend().get(asset.manifest_ref)
+    raw = get_backend().get(asset.manifestRef)
     data = json.loads(raw.decode("utf-8"))
     run_id = data.get("run_id")
     if run_id is None:
-        run_id = PurePosixPath(asset.manifest_ref).stem
-    return Manifest(run_id=run_id, data=data)
+        run_id = PurePosixPath(asset.manifestRef).stem
+    return Manifest(runId=run_id, data=data)
 
 
 def read_genblaze_manifest(run: Any, *, verify: bool = True) -> Manifest:
@@ -77,4 +77,4 @@ def read_genblaze_manifest(run: Any, *, verify: bool = True) -> Manifest:
         data = dict(gb_manifest)  # type: ignore[arg-type]
 
     run_id = getattr(run, "id", None) or data.get("run_id")
-    return Manifest(run_id=run_id, data=data)
+    return Manifest(runId=run_id, data=data)

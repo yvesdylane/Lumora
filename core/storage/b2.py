@@ -27,10 +27,10 @@ def upload_asset(
     export_id: str | None = None,
 ) -> Asset:
     """Upload a local asset to B2 under the given Lumora prefix. Returns updated Asset."""
-    if not asset.local_path:
-        raise ValueError("Asset.local_path is required for upload")
+    if not asset.localPath:
+        raise ValueError("Asset.localPath is required for upload")
 
-    path = Path(asset.local_path)
+    path = Path(asset.localPath)
     if not path.exists():
         raise FileNotFoundError(f"Local file not found: {path}")
 
@@ -49,17 +49,17 @@ def upload_asset(
             prefix,
             project_id=project_id,
             asset_id=asset.id,
-            mime_type=asset.mime_type,
+            mime_type=asset.mimeType,
         )
 
     with path.open("rb") as fh:
-        get_backend().put(key, fh, content_type=asset.mime_type)
+        get_backend().put(key, fh, content_type=asset.mimeType)
 
-    return asset.model_copy(update={"b2_key": key, "sha256": sha256})
+    return asset.model_copy(update={"b2Key": key, "sha256": sha256})
 
 
 def download_asset(b2_key: str, *, mime_type: str = "application/octet-stream") -> Asset:
-    """Download a B2 object into the local cache and return an Asset with local_path set."""
+    """Download a B2 object into the local cache and return an Asset with localPath set."""
     backend = get_backend()
     data = backend.get(b2_key)
     path = write_cache_bytes(b2_key, data, mime_type=mime_type)
@@ -67,9 +67,9 @@ def download_asset(b2_key: str, *, mime_type: str = "application/octet-stream") 
     asset = Asset(
         id=asset_id,
         source="upload",
-        mime_type=mime_type,
-        b2_key=b2_key,
-        local_path=str(path),
+        mimeType=mime_type,
+        b2Key=b2_key,
+        localPath=str(path),
         sha256=hashlib.sha256(data).hexdigest(),
     )
     return ensure_local(asset)
