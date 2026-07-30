@@ -5,6 +5,7 @@ from ai.routes.ai import router as aiRouter
 from assets.routes.assets import router as assetsRouter
 from auth.routes.auth import router as authRouter
 from jobs.routes.jobs import router as jobsRouter
+from jobs.routes.ws import router as wsRouter
 
 app = FastAPI(title="Lumora", version="0.1.0")
 
@@ -19,6 +20,7 @@ app.add_middleware(
 app.include_router(authRouter)
 app.include_router(assetsRouter)
 app.include_router(jobsRouter)
+app.include_router(wsRouter)
 app.include_router(aiRouter)
 
 
