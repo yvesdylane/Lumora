@@ -97,6 +97,22 @@ async def deleteAsset(
     return await assetsCore.deleteAsset(session, uuid.UUID(assetId))
 
 
+async def getManifest(
+    session: AsyncSession,
+    *,
+    user: UserRow,
+    assetId: str,
+) -> Asset | None:
+    from core.storage.manifest import get_manifest
+
+    asset = await assetsCore.getAsset(session, uuid.UUID(assetId))
+    if not asset:
+        raise ValueError("Asset not found")
+    if not asset.manifestRef:
+        raise ValueError("No manifest available for this asset")
+    return get_manifest(asset)
+
+
 async def getPresignedUrl(
     *,
     asset: Asset,

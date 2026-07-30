@@ -30,3 +30,8 @@ class TagUpdateRequest(BaseModel):
 
 class PresignedUrlResponse(BaseModel):
     url: str
+
+
+class ManifestResponse(BaseModel):
+    runId: str | None = None
+    data: dict = {}

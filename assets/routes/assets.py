@@ -9,6 +9,7 @@ from assets.controllers import assets as assetsController
 from assets.schemas import (
     AssetListResponse,
     ImportResponse,
+    ManifestResponse,
     PresignedUrlResponse,
     TagUpdateRequest,
 )
@@ -110,6 +111,19 @@ async def delete_asset(
     deleted = await assetsController.deleteAsset(session, user=user, assetId=asset_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found")
+
+
+@router.get("/{asset_id}/manifest", response_model=ManifestResponse)
+async def get_manifest(
+    asset_id: str,
+    user: UserRow = Depends(getCurrentUser),
+    session: AsyncSession = Depends(getSession),
+):
+    try:
+        manifest = await assetsController.getManifest(session, user=user, assetId=asset_id)
+        return ManifestResponse(runId=manifest.runId, data=manifest.data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/{asset_id}/url", response_model=PresignedUrlResponse)
