@@ -14,6 +14,7 @@ from core.timeline.models import ProjectRow  # noqa: F401 — ensure model is re
 from core.jobs.models import JobRow  # noqa: F401
 from auth.models import UserRow  # noqa: F401
 from core.assets.models import AssetRow  # noqa: F401
+from core.exports.models import ExportRow  # noqa: F401
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
