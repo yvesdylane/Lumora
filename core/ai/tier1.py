@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from typing import Literal
@@ -133,7 +134,7 @@ async def generateVoiceover(
         params=stepParams,
     )
 
-    result = pipeline.run(fail_fast=True)
+    result = await asyncio.to_thread(pipeline.run, fail_fast=True)
     succeeded = result.succeeded_steps()
 
     if not succeeded:
@@ -167,7 +168,7 @@ async def generateMusic(
         params={"duration": duration},
     )
 
-    result = pipeline.run(fail_fast=True)
+    result = await asyncio.to_thread(pipeline.run, fail_fast=True)
     succeeded = result.succeeded_steps()
 
     if not succeeded:
@@ -205,7 +206,7 @@ async def generateImage(
         params=stepParams,
     )
 
-    result = pipeline.run(fail_fast=True)
+    result = await asyncio.to_thread(pipeline.run, fail_fast=True)
     succeeded = result.succeeded_steps()
 
     if not succeeded:
@@ -245,7 +246,7 @@ async def generateVideo(
         },
     )
 
-    result = pipeline.run(fail_fast=True)
+    result = await asyncio.to_thread(pipeline.run, fail_fast=True)
     succeeded = result.succeeded_steps()
 
     if not succeeded:
