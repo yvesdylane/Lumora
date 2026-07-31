@@ -27,7 +27,9 @@ class ProjectRow(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
 
-    timeline: Mapped[TimelineRow | None] = relationship(back_populates="project", uselist=False)
+    timeline: Mapped[TimelineRow | None] = relationship(
+        back_populates="project", uselist=False, passive_deletes=True
+    )
 
 
 class TimelineRow(Base):
