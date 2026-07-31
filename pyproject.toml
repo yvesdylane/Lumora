@@ -10,6 +10,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "bcrypt>=4.0.0",
     "fastapi>=0.139.2",
+    "faster-whisper>=1.2.1",
     "genblaze-core>=0.3.7",
     "genblaze-elevenlabs>=0.1.0",
     "genblaze-gmicloud>=0.1.0",

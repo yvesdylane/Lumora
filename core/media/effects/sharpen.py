@@ -6,9 +6,12 @@ from core.media.effects.base import applySingleFilter
 
 
 def apply(asset: Asset, params: EffectParams) -> Asset:
-    """Convert video to grayscale.
+    """Sharpen video using unsharp mask.
 
-    No params required — saturation set to 0.
+    params.params:
+        amount (float): Sharpening strength. Default 1.5.
+                        Applied to both luma and chroma.
     """
-    filterStr = "hue=s=0"
+    amount = params.params.get("amount", 1.5)
+    filterStr = f"unsharp=5:5:{amount}:5:5:{amount}"
     return applySingleFilter(asset, filterStr, params.startTime, params.duration)

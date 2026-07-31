@@ -6,9 +6,11 @@ from core.media.effects.base import applySingleFilter
 
 
 def apply(asset: Asset, params: EffectParams) -> Asset:
-    """Convert video to grayscale.
+    """Adjust video color saturation.
 
-    No params required — saturation set to 0.
+    params.params:
+        value (float): Saturation multiplier. 0.0 = grayscale, 1.0 = normal, 3.0 = vivid. Default 1.5.
     """
-    filterStr = "hue=s=0"
+    value = params.params.get("value", 1.5)
+    filterStr = f"eq=saturation={value}"
     return applySingleFilter(asset, filterStr, params.startTime, params.duration)

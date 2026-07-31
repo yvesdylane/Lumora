@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 from models.asset import Asset
+from models.effect import EffectParams
 from models.renderParams import (
     AudioParams,
     ClipParams,
@@ -137,16 +138,16 @@ async def testMediaFunctions():
     )
     print(f"addTextOverlay: OK")
 
-    blurAsset = applyEffect(video1, "blur", {"strength": 3})
+    blurAsset = applyEffect(video1, "blur", EffectParams(effectType="blur", params={"sigma": 3}))
     print(f"applyEffect (blur): OK")
 
-    brightnessAsset = applyEffect(video1, "brightness", {"factor": 1.5})
+    brightnessAsset = applyEffect(video1, "brightness", EffectParams(effectType="brightness", params={"value": 0.2}))
     print(f"applyEffect (brightness): OK")
 
-    contrastAsset = applyEffect(video1, "contrast", {"factor": 1.5})
+    contrastAsset = applyEffect(video1, "contrast", EffectParams(effectType="contrast", params={"value": 1.5}))
     print(f"applyEffect (contrast): OK")
 
-    grayAsset = applyEffect(video1, "grayscale", {})
+    grayAsset = applyEffect(video1, "grayscale", EffectParams(effectType="grayscale"))
     print(f"applyEffect (grayscale): OK")
 
     print(f"\nAvailable transitions: {getAvailableTransitions()}")

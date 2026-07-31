@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import math
+
 from models.asset import Asset
 from models.effect import EffectParams
 from core.media.effects.base import applySingleFilter
 
 
 def apply(asset: Asset, params: EffectParams) -> Asset:
-    """Convert video to grayscale.
+    """Apply a vignette (darkened edges) effect.
 
-    No params required — saturation set to 0.
+    params.params:
+        angle (float): Controls vignette spread. Smaller = tighter vignette.
+                        Default 0.5 (maps to PI/0.5).
     """
-    filterStr = "hue=s=0"
+    angle = params.params.get("angle", 0.5)
+    filterStr = f"vignette=PI/{angle}"
     return applySingleFilter(asset, filterStr, params.startTime, params.duration)
