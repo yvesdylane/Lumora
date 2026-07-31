@@ -8,6 +8,7 @@ from jobs.routes.jobs import router as jobsRouter
 from jobs.routes.ws import router as wsRouter
 from middlewares.errorHandler import exceptionHandler
 from middlewares.requestId import RequestIDMiddleware
+from routes.projects import router as projectsRouter
 
 app = FastAPI(title="Lumora", version="0.1.0")
 
@@ -24,6 +25,7 @@ app.add_exception_handler(Exception, exceptionHandler)
 
 app.include_router(authRouter)
 app.include_router(assetsRouter)
+app.include_router(projectsRouter)
 app.include_router(jobsRouter)
 app.include_router(wsRouter)
 app.include_router(aiRouter)

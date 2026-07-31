@@ -18,6 +18,16 @@ async def createTimeline(session: AsyncSession, projectId: str) -> Timeline:
     return _toModel(row)
 
 
+async def getTimelineByProjectId(session: AsyncSession, projectId: str) -> Timeline | None:
+    result = await session.execute(
+        select(TimelineRow)
+        .options(selectinload(TimelineRow.tracks).selectinload(TrackRow.layers))
+        .where(TimelineRow.project_id == uuid.UUID(projectId))
+    )
+    row = result.scalar_one_or_none()
+    return _toModel(row) if row else None
+
+
 async def getTimeline(session: AsyncSession, timelineId: str) -> Timeline | None:
     result = await session.execute(
         select(TimelineRow)
