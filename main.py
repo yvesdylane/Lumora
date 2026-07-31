@@ -36,7 +36,7 @@ app.include_router(aiRouter)
 
 
 @app.get("/")
-def hello_lumora():
+def helloLumora():
     return {"message": "Hello Lumora"}
 
 

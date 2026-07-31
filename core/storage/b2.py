@@ -6,9 +6,9 @@ from pathlib import Path
 from models.asset import Asset
 from models.storage import StoragePrefix
 
-from core.storage.backend import get_backend
-from core.storage.cache import ensure_local, write_cache_bytes
-from core.storage.keys import build_key
+from core.storage.backend import getBackend
+from core.storage.cache import ensureLocal, writeCacheBytes
+from core.storage.keys import buildKey
 
 
 def _sha256_file(path: Path) -> str:
@@ -19,12 +19,12 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def upload_asset(
+def uploadAsset(
     asset: Asset,
     *,
-    project_id: str,
+    projectId: str,
     prefix: StoragePrefix | str,
-    export_id: str | None = None,
+    exportId: str | None = None,
 ) -> Asset:
     """Upload a local asset to B2 under the given Lumora prefix. Returns updated Asset."""
     if not asset.localPath:
@@ -37,44 +37,44 @@ def upload_asset(
     sha256 = asset.sha256 or _sha256_file(path)
 
     if str(prefix) == StoragePrefix.RENDERS:
-        if not export_id:
-            raise ValueError("export_id is required for renders/ uploads")
-        key = build_key(
+        if not exportId:
+            raise ValueError("exportId is required for renders/ uploads")
+        key = buildKey(
             prefix,
-            project_id=project_id,
-            export_id=export_id,
+            projectId=projectId,
+            exportId=exportId,
         )
     else:
-        key = build_key(
+        key = buildKey(
             prefix,
-            project_id=project_id,
-            asset_id=asset.id,
-            mime_type=asset.mimeType,
+            projectId=projectId,
+            assetId=asset.id,
+            mimeType=asset.mimeType,
         )
 
     with path.open("rb") as fh:
-        get_backend().put(key, fh, content_type=asset.mimeType)
+        getBackend().put(key, fh, content_type=asset.mimeType)
 
     return asset.model_copy(update={"b2Key": key, "sha256": sha256})
 
 
-def download_asset(b2_key: str, *, mime_type: str = "application/octet-stream") -> Asset:
+def downloadAsset(b2Key: str, *, mimeType: str = "application/octet-stream") -> Asset:
     """Download a B2 object into the local cache and return an Asset with localPath set."""
-    backend = get_backend()
-    data = backend.get(b2_key)
-    path = write_cache_bytes(b2_key, data, mime_type=mime_type)
-    asset_id = Path(b2_key).stem
+    backend = getBackend()
+    data = backend.get(b2Key)
+    path = writeCacheBytes(b2Key, data, mimeType=mimeType)
+    assetId = Path(b2Key).stem
     asset = Asset(
-        id=asset_id,
+        id=assetId,
         source="upload",
-        mimeType=mime_type,
-        b2Key=b2_key,
+        mimeType=mimeType,
+        b2Key=b2Key,
         localPath=str(path),
         sha256=hashlib.sha256(data).hexdigest(),
     )
-    return ensure_local(asset)
+    return ensureLocal(asset)
 
 
-def get_presigned_url(b2_key: str, expires_in: int = 3600) -> str:
+def getPresignedUrl(b2Key: str, expiresIn: int = 3600) -> str:
     """Return a short-lived presigned GET URL for a B2 object."""
-    return get_backend().presigned_get_url(b2_key, expires_in=expires_in)
+    return getBackend().presigned_get_url(b2Key, expires_in=expiresIn)

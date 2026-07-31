@@ -33,7 +33,7 @@ def _assetToResponse(asset) -> ImportResponse:
 
 
 @router.post("/import", response_model=ImportResponse, status_code=status.HTTP_201_CREATED)
-async def import_asset(
+async def importAsset(
     projectId: str = Form(...),
     kind: str = Form(...),
     file: UploadFile = File(...),
@@ -54,7 +54,7 @@ async def import_asset(
 
 
 @router.get("", response_model=AssetListResponse)
-async def list_assets(
+async def listAssets(
     projectId: str = Query(...),
     q: str | None = Query(None),
     tags: str | None = Query(None),
@@ -73,7 +73,7 @@ async def list_assets(
 
 
 @router.get("/{asset_id}", response_model=ImportResponse)
-async def get_asset(
+async def getAsset(
     asset_id: str,
     user: UserRow = Depends(getCurrentUser),
     session: AsyncSession = Depends(getSession),
@@ -85,7 +85,7 @@ async def get_asset(
 
 
 @router.patch("/{asset_id}/tags", response_model=ImportResponse)
-async def update_tags(
+async def updateTags(
     asset_id: str,
     data: TagUpdateRequest,
     user: UserRow = Depends(getCurrentUser),
@@ -103,7 +103,7 @@ async def update_tags(
 
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_asset(
+async def deleteAsset(
     asset_id: str,
     user: UserRow = Depends(getCurrentUser),
     session: AsyncSession = Depends(getSession),
@@ -114,7 +114,7 @@ async def delete_asset(
 
 
 @router.get("/{asset_id}/manifest", response_model=ManifestResponse)
-async def get_manifest(
+async def getManifest(
     asset_id: str,
     user: UserRow = Depends(getCurrentUser),
     session: AsyncSession = Depends(getSession),
@@ -127,7 +127,7 @@ async def get_manifest(
 
 
 @router.get("/{asset_id}/url", response_model=PresignedUrlResponse)
-async def get_asset_url(
+async def getAssetUrl(
     asset_id: str,
     user: UserRow = Depends(getCurrentUser),
     session: AsyncSession = Depends(getSession),

@@ -10,6 +10,7 @@ from auth.models import UserRow
 from core.assets import assets as assetsCore
 from core.storage import b2 as b2Storage
 from models.asset import Asset
+from models.manifest import Manifest
 from models.storage import StoragePrefix
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,9 +39,9 @@ async def importAsset(
         kind=kind,
     )
 
-    asset = b2Storage.upload_asset(
+    asset = b2Storage.uploadAsset(
         asset,
-        project_id=projectId,
+        projectId=projectId,
         prefix=StoragePrefix.UPLOADS,
     )
 
@@ -91,8 +92,9 @@ async def deleteAsset(
 ) -> bool:
     asset = await assetsCore.getAsset(session, uuid.UUID(assetId))
     if asset and asset.b2Key:
-        from core.storage.backend import get_backend
-        get_backend().delete(asset.b2Key)
+        from core.storage.backend import getBackend
+
+        getBackend().delete(asset.b2Key)
 
     return await assetsCore.deleteAsset(session, uuid.UUID(assetId))
 
@@ -102,15 +104,15 @@ async def getManifest(
     *,
     user: UserRow,
     assetId: str,
-) -> Asset | None:
-    from core.storage.manifest import get_manifest
+) -> Manifest:
+    from core.storage.manifest import getManifest
 
     asset = await assetsCore.getAsset(session, uuid.UUID(assetId))
     if not asset:
         raise ValueError("Asset not found")
     if not asset.manifestRef:
         raise ValueError("No manifest available for this asset")
-    return get_manifest(asset)
+    return getManifest(asset)
 
 
 async def getPresignedUrl(
@@ -119,4 +121,4 @@ async def getPresignedUrl(
 ) -> str:
     if not asset.b2Key:
         raise ValueError("Asset has no B2 key")
-    return b2Storage.get_presigned_url(asset.b2Key)
+    return b2Storage.getPresignedUrl(asset.b2Key)

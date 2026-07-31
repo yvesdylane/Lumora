@@ -5,30 +5,30 @@ from pathlib import Path
 from models.asset import Asset
 from models.storage import StoragePrefix
 
-from core.storage.backend import get_backend
-from core.storage.keys import build_key, staging_prefix
+from core.storage.backend import getBackend
+from core.storage.keys import buildKey, stagingPrefix
 
 
-def move_to_staging(asset: Asset, run_id: str) -> Asset:
-    """Server-side copy asset into staging/{run_id}/. Returns Asset with updated b2Key."""
+def moveToStaging(asset: Asset, runId: str) -> Asset:
+    """Server-side copy asset into staging/{runId}/. Returns Asset with updated b2Key."""
     if not asset.b2Key:
         raise ValueError("Asset.b2Key is required to move to staging")
 
-    staging_key = build_key(
+    stagingKey = buildKey(
         StoragePrefix.STAGING,
-        run_id=run_id,
-        asset_id=asset.id,
-        mime_type=asset.mimeType,
+        runId=runId,
+        assetId=asset.id,
+        mimeType=asset.mimeType,
     )
-    get_backend().copy(asset.b2Key, staging_key)
-    return asset.model_copy(update={"b2Key": staging_key})
+    getBackend().copy(asset.b2Key, stagingKey)
+    return asset.model_copy(update={"b2Key": stagingKey})
 
 
-def promote_staging_to_final(asset: Asset, final_prefix: str) -> Asset:
+def promoteStagingToFinal(asset: Asset, finalPrefix: str) -> Asset:
     """
     Promote a staged object to a permanent prefix, then delete the staging copy.
 
-    final_prefix should be e.g. 'generated-audio/{project_id}' or
+    finalPrefix should be e.g. 'generated-audio/{project_id}' or
     'generated-image/{project_id}' (with or without trailing slash).
     """
     if not asset.b2Key:
@@ -36,17 +36,17 @@ def promote_staging_to_final(asset: Asset, final_prefix: str) -> Asset:
     if not asset.b2Key.startswith(f"{StoragePrefix.STAGING}/"):
         raise ValueError(f"Asset is not in staging: {asset.b2Key}")
 
-    prefix = final_prefix.strip("/")
+    prefix = finalPrefix.strip("/")
     ext = Path(asset.b2Key).suffix or ""
-    # final_prefix already includes project_id segment
-    final_key = f"{prefix}/{asset.id}{ext}"
+    # finalPrefix already includes project_id segment
+    finalKey = f"{prefix}/{asset.id}{ext}"
 
-    backend = get_backend()
-    backend.copy(asset.b2Key, final_key)
+    backend = getBackend()
+    backend.copy(asset.b2Key, finalKey)
     backend.delete(asset.b2Key)
-    return asset.model_copy(update={"b2Key": final_key})
+    return asset.model_copy(update={"b2Key": finalKey})
 
 
-def delete_staging(run_id: str) -> None:
-    """Delete all objects under staging/{run_id}/."""
-    get_backend().delete_prefix(staging_prefix(run_id), dry_run=False)
+def deleteStaging(runId: str) -> None:
+    """Delete all objects under staging/{runId}/."""
+    getBackend().delete_prefix(stagingPrefix(runId), dry_run=False)

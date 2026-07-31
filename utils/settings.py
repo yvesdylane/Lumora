@@ -22,5 +22,5 @@ class Settings:
 
 
 @lru_cache
-def get_settings() -> Settings:
+def getSettings() -> Settings:
     return Settings()

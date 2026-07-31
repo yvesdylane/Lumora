@@ -21,5 +21,5 @@ _EXT_MAP: dict[str, str] = {
 }
 
 
-def extension_for_mime(mime_type: str) -> str:
-    return _EXT_MAP.get(mime_type, Path(mime_type.split("/")[-1]).suffix or "")
+def extensionForMime(mimeType: str) -> str:
+    return _EXT_MAP.get(mimeType, Path(mimeType.split("/")[-1]).suffix or "")
