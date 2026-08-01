@@ -16,6 +16,8 @@ class Settings:
     b2_region: str = os.getenv("region", "us-east-005")
     b2_public_url_base: str = os.getenv("B2_PUBLIC_URL_BASE", "")
 
+    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
     lumora_cache_dir: Path = Path(
         os.getenv("LUMORA_CACHE_DIR", Path.home() / ".lumora" / "cache")
     )

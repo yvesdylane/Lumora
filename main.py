@@ -1,9 +1,15 @@
+from __future__ import annotations
+
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ai.routes.ai import router as aiRouter
 from assets.routes.assets import router as assetsRouter
 from auth.routes.auth import router as authRouter
+from core.jobs.notifications import startSubscriber, stopSubscriber
 from jobs.routes.jobs import router as jobsRouter
 from jobs.routes.ws import router as wsRouter
 from middlewares.errorHandler import exceptionHandler
@@ -12,7 +18,20 @@ from routes.layers import router as layersRouter
 from routes.projects import router as projectsRouter
 from routes.tracks import router as tracksRouter
 
-app = FastAPI(title="Lumora", version="0.1.0")
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        await startSubscriber()
+    except Exception as e:
+        logger.warning(f"Failed to start Redis job subscriber: {e}")
+    yield
+    await stopSubscriber()
+
+
+app = FastAPI(title="Lumora", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(
