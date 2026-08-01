@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Literal
 
 from auth.models import UserRow
-from core.database import asyncSession
-from core.jobs.dispatcher import dispatchJob
+from core.jobs.celeryTasks import runGenerationJob
 from core.jobs.jobs import createJob as createJobCore
-from core.jobs.jobs import getJob
 from models.job import GenerationJob
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,7 +29,7 @@ async def generateVoiceover(
         jobType="voiceover",
         prompt=payload,
     )
-    _fireDispatch(job.id)
+    _enqueue(job.id)
     return job
 
 
@@ -52,7 +49,7 @@ async def generateMusic(
         jobType="music",
         prompt=prompt,
     )
-    _fireDispatch(job.id)
+    _enqueue(job.id)
     return job
 
 
@@ -72,16 +69,9 @@ async def generateImage(
         jobType="image",
         prompt=prompt,
     )
-    _fireDispatch(job.id)
+    _enqueue(job.id)
     return job
 
 
-def _fireDispatch(jobId: str) -> None:
-    asyncio.create_task(_dispatchBackground(jobId))
-
-
-async def _dispatchBackground(jobId: str) -> None:
-    async with asyncSession() as session:
-        job = await getJob(session, jobId)
-        if job:
-            await dispatchJob(session, job)
+def _enqueue(jobId: str) -> None:
+    runGenerationJob.apply_async(args=[jobId])

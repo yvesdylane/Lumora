@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +12,8 @@ from core.ai.tier1 import (
     generateVideo,
     generateVoiceover,
 )
-from core.jobs.dispatcher import dispatchJob
+from core.jobs.celeryTasks import runGenerationJob
+from core.jobs.jobs import getJob
 from core.timeline.layers import addLayer
 from models.job import GenerationJob
 from models.layer import Layer
@@ -34,10 +36,11 @@ async def generateAndApply(
     job: GenerationJob,
     trackId: str,
 ) -> Layer | None:
-    completed = await dispatchJob(session, job)
+    runGenerationJob.apply_async(args=[job.id])
+    completed = await _waitForJob(session, job.id)
 
-    if completed.status != "completed" or not completed.result:
-        logger.warning(f"Job {job.id} did not complete successfully: status={completed.status}")
+    if completed is None or completed.status != "completed" or not completed.result:
+        logger.warning(f"Job {job.id} did not complete successfully: status={completed.status if completed else 'unknown'}")
         return None
 
     layerType, params = _resultToLayer(job.jobType, completed.result)
@@ -52,6 +55,23 @@ async def generateAndApply(
         params=params,
         source="genblaze_generated",
     )
+
+
+async def _waitForJob(
+    session: AsyncSession,
+    jobId: str,
+    timeout: float = 300.0,
+    interval: float = 1.0,
+) -> GenerationJob | None:
+    """Poll the DB until a job leaves the running/pending state."""
+    elapsed = 0.0
+    while elapsed < timeout:
+        job = await getJob(session, jobId)
+        if job is not None and job.status not in {"pending", "running"}:
+            return job
+        await asyncio.sleep(interval)
+        elapsed += interval
+    return await getJob(session, jobId)
 
 
 async def runAgenticGeneration(
