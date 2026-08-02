@@ -5,6 +5,7 @@ import json
 import subprocess
 import uuid
 from pathlib import Path
+from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +49,32 @@ async def getAsset(session: AsyncSession, assetId: uuid.UUID) -> Asset | None:
     result = await session.execute(select(AssetRow).where(AssetRow.id == assetId))
     row = result.scalar_one_or_none()
     return _rowToAsset(row) if row else None
+
+
+async def persistGeneratedAsset(
+    session: AsyncSession,
+    *,
+    userId: uuid.UUID,
+    projectId: uuid.UUID,
+    asset: Asset,
+    source: Literal["upload", "ai"] = "ai",
+) -> Asset:
+    row = AssetRow(
+        user_id=userId,
+        project_id=projectId,
+        source=source,
+        mime_type=asset.mimeType,
+        duration=asset.duration,
+        b2_key=asset.b2Key,
+        local_path=asset.localPath,
+        sha256=asset.sha256,
+        manifest_ref=asset.manifestRef,
+        tags=asset.tags,
+    )
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return _rowToAsset(row)
 
 
 async def searchAssets(

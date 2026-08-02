@@ -7,7 +7,7 @@ from auth.middlewares.auth import getCurrentUser
 from auth.models import UserRow
 from core.database import getSession
 from jobs.controllers import jobs as jobsController
-from jobs.schemas import CreateJobRequest, JobListResponse, JobResponse
+from jobs.schemas import CreateJobRequest, JobListResponse, JobResponse, RenderRequest
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -44,6 +44,24 @@ async def createJob(
         prompt=data.prompt,
     )
     return _jobToResponse(job)
+
+
+@router.post("/render", response_model=JobResponse, status_code=status.HTTP_202_ACCEPTED)
+async def createRenderJob(
+    data: RenderRequest,
+    user: UserRow = Depends(getCurrentUser),
+    session: AsyncSession = Depends(getSession),
+):
+    try:
+        job = await jobsController.createRenderJob(
+            session,
+            user=user,
+            projectId=data.projectId,
+            outputFormat=data.outputFormat,
+        )
+        return _jobToResponse(job)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/{job_id}", response_model=JobResponse)

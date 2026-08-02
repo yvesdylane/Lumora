@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.timeline import layers as layersCore
 from core.timeline import projects as projectCore
 from core.timeline import timeline as timelineCore
+from core.timeline import tracks as tracksCore
 from models.project import Project
+from models.timelineDetail import TimelineDetail, TrackDetail
 
 
 async def createProject(session: AsyncSession, userId: str, name: str):
@@ -24,11 +27,22 @@ async def getProject(session: AsyncSession, projectId: str, userId: str) -> Proj
     return project
 
 
-async def getTimeline(session: AsyncSession, projectId: str, userId: str):
+async def getTimeline(session: AsyncSession, projectId: str, userId: str) -> TimelineDetail:
     project = await projectCore.getProject(session, projectId=projectId)
     if project is None or project.userId != userId:
         raise ValueError("Project not found")
-    return await timelineCore.getTimelineByProjectId(session, projectId=project.id)
+
+    timeline = await timelineCore.getTimelineByProjectId(session, projectId=project.id)
+    if timeline is None:
+        raise ValueError("Timeline not found")
+
+    tracks = await tracksCore.getTracks(session, timeline.id)
+    trackDetails = []
+    for track in tracks:
+        layers = await layersCore.getLayers(session, track.id)
+        trackDetails.append(TrackDetail(**track.model_dump(), layers=layers))
+
+    return TimelineDetail(project=project, timeline=timeline, tracks=trackDetails)
 
 
 async def updateProject(session: AsyncSession, projectId: str, userId: str, name: str) -> Project:

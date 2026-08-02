@@ -10,6 +10,7 @@ from controllers import projects as projectsController
 from core.database import getSession
 from models.project import Project
 from models.timeline import Timeline
+from models.timelineDetail import TimelineDetail
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -65,7 +66,7 @@ async def get(
         )
 
 
-@router.get("/{project_id}/timeline")
+@router.get("/{project_id}/timeline", response_model=TimelineDetail)
 async def getTimeline(
     project_id: str,
     user: UserRow = Depends(getCurrentUser),

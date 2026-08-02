@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -10,6 +11,11 @@ class CreateJobRequest(BaseModel):
     tier: int
     jobType: str
     prompt: str = ""
+
+
+class RenderRequest(BaseModel):
+    projectId: str
+    outputFormat: Literal["mp4", "webm"] = "mp4"
 
 
 class JobResponse(BaseModel):

@@ -31,6 +31,8 @@ async def dispatchJob(
             result = await _dispatchTier0(job)
         elif job.tier == 1:
             result = await _dispatchTier1(job)
+        elif job.tier == 2:
+            result = await _dispatchTier2(session, job)
         else:
             raise ValueError(f"Unknown tier: {job.tier}")
 
@@ -148,3 +150,53 @@ def _parsePayload(prompt: str) -> dict:
         return json.loads(prompt)
     except (json.JSONDecodeError, TypeError):
         return {}
+
+
+async def _dispatchTier2(session: AsyncSession, job: GenerationJob) -> dict:
+    import uuid
+
+    from core.assets.assets import persistGeneratedAsset
+    from core.services.render import renderProject
+    from core.storage.b2 import uploadAsset
+    from core.timeline.projects import getProject
+    from models.storage import StoragePrefix
+
+    payload = _parsePayload(job.prompt)
+    outputFormat = payload.get("outputFormat", "mp4")
+
+    asset = await renderProject(
+        session,
+        job.projectId,
+        outputFormat=outputFormat,
+    )
+
+    uploaded = uploadAsset(
+        asset,
+        projectId=job.projectId,
+        prefix=StoragePrefix.RENDERS,
+        exportId=job.id,
+    )
+
+    project = await getProject(session, job.projectId)
+    if project is None:
+        raise ValueError(f"Project not found: {job.projectId}")
+
+    persisted = await persistGeneratedAsset(
+        session,
+        userId=uuid.UUID(project.userId),
+        projectId=uuid.UUID(job.projectId),
+        asset=uploaded,
+        source="ai",
+    )
+
+    return {
+        "tier": 2,
+        "jobType": job.jobType,
+        "asset": {
+            "id": persisted.id,
+            "mimeType": persisted.mimeType,
+            "source": persisted.source,
+            "duration": persisted.duration,
+            "b2Key": persisted.b2Key,
+        },
+    }
