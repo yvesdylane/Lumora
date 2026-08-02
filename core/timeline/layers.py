@@ -5,8 +5,25 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.assets.models import AssetRow
 from core.timeline.models import LayerRow
 from models.layer import Layer
+
+
+async def _enrichAssetDuration(
+    session: AsyncSession, layerType: str, params: dict
+) -> None:
+    if layerType not in ("clip", "audio"):
+        return
+    assetId = params.get("assetId")
+    if not assetId or params.get("duration") is not None:
+        return
+    try:
+        row = await session.get(AssetRow, uuid.UUID(str(assetId)))
+    except ValueError:
+        return
+    if row and row.duration is not None:
+        params["duration"] = float(row.duration)
 
 
 async def addLayer(
@@ -16,6 +33,8 @@ async def addLayer(
     params: dict,
     source: str = "manual",
 ) -> Layer:
+    params = dict(params)
+    await _enrichAssetDuration(session, layerType, params)
     result = await session.execute(
         select(LayerRow.position)
         .where(LayerRow.track_id == uuid.UUID(trackId))
@@ -51,6 +70,8 @@ async def updateLayer(session: AsyncSession, layerId: str, params: dict) -> Laye
     row = await session.get(LayerRow, uuid.UUID(layerId))
     if not row:
         return None
+    params = dict(params)
+    await _enrichAssetDuration(session, row.layer_type, params)
     row.params = params
     await session.commit()
     await session.refresh(row)

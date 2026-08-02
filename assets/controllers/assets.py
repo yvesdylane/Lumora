@@ -31,21 +31,39 @@ async def importAsset(
         tmp.write(content)
         tmpPath = tmp.name
 
-    asset = await assetsCore.importAsset(
-        session,
-        userId=user.id,
-        projectId=projectIdUuid,
-        localPath=tmpPath,
-        kind=kind,
-    )
+    try:
+        asset = await assetsCore.importAsset(
+            session,
+            userId=user.id,
+            projectId=projectIdUuid,
+            localPath=tmpPath,
+            kind=kind,
+        )
 
-    asset = b2Storage.uploadAsset(
-        asset,
-        projectId=projectId,
-        prefix=StoragePrefix.UPLOADS,
-    )
+        asset = b2Storage.uploadAsset(
+            asset,
+            projectId=projectId,
+            prefix=StoragePrefix.UPLOADS,
+        )
 
-    return asset
+        duration = None
+        mediaInfo = assetsCore.getMediaInfo(asset)
+        if mediaInfo.duration:
+            duration = mediaInfo.duration
+
+        persisted = await assetsCore.persistStorageMetadata(
+            session,
+            assetId=uuid.UUID(asset.id),
+            b2Key=asset.b2Key,
+            sha256=asset.sha256,
+            duration=duration,
+        )
+        if persisted is not None:
+            asset = persisted
+
+        return asset
+    finally:
+        Path(tmpPath).unlink(missing_ok=True)
 
 
 async def getAsset(

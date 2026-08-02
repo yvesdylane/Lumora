@@ -51,6 +51,27 @@ async def getAsset(session: AsyncSession, assetId: uuid.UUID) -> Asset | None:
     return _rowToAsset(row) if row else None
 
 
+async def persistStorageMetadata(
+    session: AsyncSession,
+    *,
+    assetId: uuid.UUID,
+    b2Key: str,
+    sha256: str,
+    duration: float | None = None,
+) -> Asset | None:
+    """Persist B2 object key + media info back onto an already-committed AssetRow."""
+    row = await session.get(AssetRow, assetId)
+    if row is None:
+        return None
+    row.b2_key = b2Key
+    row.sha256 = sha256
+    if duration is not None:
+        row.duration = duration
+    await session.commit()
+    await session.refresh(row)
+    return _rowToAsset(row)
+
+
 async def persistGeneratedAsset(
     session: AsyncSession,
     *,
@@ -137,16 +158,19 @@ def getMediaInfo(asset: Asset) -> MediaInfo:
     if not path.exists():
         return MediaInfo()
 
-    result = subprocess.run(
-        [
-            "ffprobe", "-v", "quiet",
-            "-print_format", "json",
-            "-show_format", "-show_streams",
-            str(path),
-        ],
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "quiet",
+                "-print_format", "json",
+                "-show_format", "-show_streams",
+                str(path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return MediaInfo()
     if result.returncode != 0:
         return MediaInfo()
 

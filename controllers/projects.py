@@ -9,10 +9,14 @@ from core.timeline import tracks as tracksCore
 from models.project import Project
 from models.timelineDetail import TimelineDetail, TrackDetail
 
+DEFAULT_TRACK_KINDS = ["video", "audio", "text", "effects"]
+
 
 async def createProject(session: AsyncSession, userId: str, name: str):
     project = await projectCore.createProject(session, name=name, userId=userId)
     timeline = await timelineCore.createTimeline(session, projectId=project.id)
+    for kind in DEFAULT_TRACK_KINDS:
+        await tracksCore.addTrack(session, timeline.id, kind)
     return {"project": project, "timeline": timeline}
 
 
