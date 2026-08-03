@@ -353,6 +353,27 @@ async def testTextParamsContentAlias():
     print("✅ TextParams content alias passed!\n")
 
 
+async def testFontResolver():
+    print("=" * 60)
+    print("TEST: Font resolver")
+    print("=" * 60)
+
+    from core.renderer.fonts import resolveFontFile
+
+    assert resolveFontFile(TextParams(font="Arial")) == \
+        "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf"
+    assert resolveFontFile(TextParams(fontFamily="Inter")) == \
+        "/usr/share/fonts/rsms-inter-fonts/Inter-Regular.ttf"
+    assert resolveFontFile(TextParams(fontFamily="Montserrat")) == \
+        "/usr/share/fonts/julietaula-montserrat-fonts/Montserrat-Regular.otf"
+    assert resolveFontFile(TextParams()) == \
+        "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf"
+    assert resolveFontFile(TextParams(fontFamily="NotARealFont")) == \
+        "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf"
+
+    print("✅ Font resolver passed!\n")
+
+
 async def main():
     print("\n" + "=" * 60)
     print("LUMORA RENDERER — FULL TEST SUITE")
@@ -362,6 +383,7 @@ async def main():
     await testRenderSingleClip()
     await testRenderEffectsOnly()
     await testTextParamsContentAlias()
+    await testFontResolver()
     await testRenderPipeline()
 
     print("=" * 60)
