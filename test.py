@@ -326,6 +326,33 @@ async def testRenderEffectsOnly():
     print("✅ Effects render passed!\n")
 
 
+async def testTextParamsContentAlias():
+    print("=" * 60)
+    print("TEST: TextParams content alias")
+    print("=" * 60)
+
+    p = TextParams(content="Hello")
+    assert p.text == "Hello", f"Expected text='Hello', got {p.text!r}"
+
+    p2 = TextParams(text="Direct")
+    assert p2.text == "Direct"
+
+    p3 = TextParams(content="Aliased", size=32, rotation=10.0)
+    assert p3.text == "Aliased"
+    assert p3.size == 32
+    assert p3.rotation == 10.0
+    assert p3.opacity == 1.0
+    assert p3.outlineWidth == 0
+    assert p3.shadowX == 0.0
+    assert p3.box is False
+    assert p3.boxBorderW == 8
+
+    p4 = TextParams(**{"text": "Legacy dict", "size": 20})
+    assert p4.text == "Legacy dict"
+
+    print("✅ TextParams content alias passed!\n")
+
+
 async def main():
     print("\n" + "=" * 60)
     print("LUMORA RENDERER — FULL TEST SUITE")
@@ -334,6 +361,7 @@ async def main():
     await testMediaFunctions()
     await testRenderSingleClip()
     await testRenderEffectsOnly()
+    await testTextParamsContentAlias()
     await testRenderPipeline()
 
     print("=" * 60)

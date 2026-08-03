@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class ClipParams(BaseModel):
@@ -26,14 +26,36 @@ class AudioParams(BaseModel):
 
 
 class TextParams(BaseModel):
-    text: str
+    text: str = ""
+    content: str | None = None
     font: str = "Arial"
+    fontFamily: str | None = None
     size: int = 48
     color: str = "white"
     bgColor: str | None = None
     position: dict = {"x": 0.5, "y": 0.9}
     startTime: float = 0.0
     duration: float | None = None
+    outlineWidth: int = 0
+    outlineColor: str = "black"
+    shadowX: float = 0.0
+    shadowY: float = 0.0
+    shadowColor: str = "black"
+    box: bool = False
+    boxColor: str = "black"
+    boxBorderW: int = 8
+    rotation: float = 0.0
+    opacity: float = 1.0
+
+    @model_validator(mode="before")
+    @classmethod
+    def _aliasContentToText(cls, data):
+        if isinstance(data, dict):
+            text = data.get("text")
+            content = data.get("content")
+            if (text is None or text == "") and content is not None:
+                return {**data, "text": content}
+        return data
 
 
 class EffectParams(BaseModel):
