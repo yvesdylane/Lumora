@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from models.asset import Asset
+from models.asset import Asset, MediaInfo
 from models.renderParams import (
     AudioParams,
     BlurParams,
@@ -149,6 +149,9 @@ def applyVideoFilters(
     src = Path(videoAsset.localPath)
     out = RENDER_DIR / f"filtered_{uuid.uuid4().hex}.mp4"
 
+    if any(t.rotation != 0 for t in textLayers):
+        return _applyVideoFiltersComplex(src, videoAsset, info, textLayers, effectLayers, out)
+
     filters = []
     for e in effectLayers:
         filters.append(buildEffectFilter(e))
@@ -177,6 +180,53 @@ def applyVideoFilters(
         check=True,
     )
 
+    return _newFilteredAsset(videoAsset, out)
+
+
+def _applyVideoFiltersComplex(
+    src: Path,
+    videoAsset: Asset,
+    info: MediaInfo,
+    textLayers: list[TextParams],
+    effectLayers: list[EffectParams],
+    out: Path,
+) -> Asset:
+    width, height = info.resolution or (1920, 1080)
+    duration = info.duration or 5.0
+    fps = info.fps or 30
+
+    inputs, filterComplex = buildFilterComplexGraph(
+        textLayers,
+        effectLayers,
+        width,
+        height,
+        duration,
+        fps,
+    )
+
+    subprocess.run(
+        [
+            "ffmpeg", "-y",
+            "-i", str(src),
+            *inputs,
+            "-filter_complex", filterComplex,
+            "-map", "[v%d]" % (len(textLayers) - 1),
+            "-map", "0:a?",
+            "-c:v", "libx264",
+            "-crf", "23",
+            "-preset", "medium",
+            "-c:a", "copy",
+            str(out),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    return _newFilteredAsset(videoAsset, out)
+
+
+def _newFilteredAsset(videoAsset: Asset, out: Path) -> Asset:
     filtered = Asset(
         id=str(uuid.uuid4()),
         source=videoAsset.source,

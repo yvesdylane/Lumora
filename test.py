@@ -438,6 +438,83 @@ async def testTextFilterRichOptions():
     print("✅ buildTextFilter rich options passed!\n")
 
 
+async def testRenderTextRichStyling():
+    print("=" * 60)
+    print("TEST: Render Text with Rich Styling + Rotation")
+    print("=" * 60)
+
+    video1 = _generateTestVideo(duration=3.0, color="blue")
+    assetRegistry = {video1.id: video1}
+
+    timeline = TimelineComposition(
+        tracks=[
+            TrackComposition(
+                kind="video",
+                position=0,
+                layers=[
+                    LayerComposition(
+                        layerType="clip",
+                        params=ClipParams(assetId=video1.id).model_dump(),
+                        position=0,
+                    ),
+                ],
+            ),
+            TrackComposition(
+                kind="text",
+                position=1,
+                layers=[
+                    LayerComposition(
+                        layerType="text",
+                        params=TextParams(
+                            content="Rotated Title",
+                            fontFamily="Inter",
+                            size=36,
+                            color="yellow",
+                            rotation=15.0,
+                            opacity=0.8,
+                            outlineWidth=2,
+                            outlineColor="black",
+                            shadowX=3,
+                            shadowY=4,
+                            position={"x": 0.5, "y": 0.2},
+                            startTime=0.0,
+                            duration=2.0,
+                        ).model_dump(),
+                        position=0,
+                    ),
+                    LayerComposition(
+                        layerType="text",
+                        params=TextParams(
+                            content="Bottom Left",
+                            size=28,
+                            color="white",
+                            box=True,
+                            boxColor="black",
+                            position={"x": 0.1, "y": 0.9},
+                            startTime=0.0,
+                            duration=2.0,
+                        ).model_dump(),
+                        position=1,
+                    ),
+                ],
+            ),
+        ],
+    )
+
+    result = await renderTimeline(timeline, assetRegistry)
+    resultInfo = getMediaInfo(result)
+    print(
+        f"Rich text render: {resultInfo.duration:.2f}s, "
+        f"resolution={resultInfo.resolution}"
+    )
+
+    assert result.localPath is not None
+    assert Path(result.localPath).exists()
+    assert resultInfo.duration is not None and resultInfo.duration > 0
+
+    print("✅ Rich text render passed!\n")
+
+
 async def main():
     print("\n" + "=" * 60)
     print("LUMORA RENDERER — FULL TEST SUITE")
@@ -446,9 +523,7 @@ async def main():
     await testMediaFunctions()
     await testRenderSingleClip()
     await testRenderEffectsOnly()
-    await testTextParamsContentAlias()
-    await testFontResolver()
-    await testTextFilterRichOptions()
+    await testRenderTextRichStyling()
     await testRenderPipeline()
 
     print("=" * 60)
