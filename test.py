@@ -374,6 +374,70 @@ async def testFontResolver():
     print("✅ Font resolver passed!\n")
 
 
+async def testTextFilterRichOptions():
+    print("=" * 60)
+    print("TEST: buildTextFilter rich options")
+    print("=" * 60)
+
+    from core.renderer.ffmpegGraph import buildTextFilter, buildFilterComplexGraph
+
+    f = buildTextFilter(
+        TextParams(
+            content="Hi There",
+            fontFamily="Inter",
+            size=40,
+            color="white",
+            outlineWidth=2,
+            outlineColor="red",
+            shadowX=3,
+            shadowY=4,
+            shadowColor="black",
+            box=True,
+            boxColor="black",
+            boxBorderW=6,
+            opacity=0.5,
+            position={"x": 0.5, "y": 0.9},
+            startTime=0.0,
+            duration=2.0,
+        ),
+        10.0,
+    )
+    assert "fontfile=/usr/share/fonts/rsms-inter-fonts/Inter-Regular.ttf" in f
+    assert "fontsize=40" in f
+    assert "fontcolor=white@0.5" in f
+    assert "bordercolor=red:borderw=2" in f
+    assert "shadowcolor=black:shadowx=3:shadowy=4" in f
+    assert "box=1:boxcolor=black@0.5:boxborderw=6" in f
+    assert "enable=between(t\\,0.0\\,2.0)" in f
+
+    legacy = buildTextFilter(
+        TextParams(text="Legacy", bgColor="black", size=20),
+        5.0,
+    )
+    assert "box=1:boxcolor=black@0.6:boxborderw=8" in legacy
+
+    inputs, graph = buildFilterComplexGraph(
+        textLayers=[
+            TextParams(content="Rot", rotation=15.0, position={"x": 0.1, "y": 0.9}),
+            TextParams(content="Plain", position={"x": 0.5, "y": 0.5}),
+        ],
+        effectLayers=[],
+        width=640,
+        height=480,
+        duration=2.0,
+        fps=30,
+    )
+    assert len(inputs) == 8  # 2 layers x ("-f","lavfi","-i","color=...")
+    assert "[0:v]null[base]" in graph
+    assert graph.count("rotate=") == 1
+    assert "fillcolor=0x00000000" in graph
+    assert "format=rgba" in graph
+    assert "overlay=x=-256:y=192:format=auto" in graph
+    assert "[base][t0]overlay=" in graph
+
+    print("✅ buildTextFilter rich options passed!\n")
+
+
 async def main():
     print("\n" + "=" * 60)
     print("LUMORA RENDERER — FULL TEST SUITE")
@@ -384,6 +448,7 @@ async def main():
     await testRenderEffectsOnly()
     await testTextParamsContentAlias()
     await testFontResolver()
+    await testTextFilterRichOptions()
     await testRenderPipeline()
 
     print("=" * 60)

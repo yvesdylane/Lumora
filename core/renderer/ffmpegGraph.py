@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import subprocess
 import tempfile
 import uuid
@@ -16,6 +17,7 @@ from models.renderParams import (
     TextParams,
 )
 from core.assets.assets import getMediaInfo
+from core.renderer.fonts import resolveFontFile
 
 RENDER_DIR = Path(tempfile.mkdtemp(prefix="lumora_render_"))
 
@@ -36,22 +38,90 @@ def buildTextFilter(params: TextParams, videoDuration: float) -> str:
 
     escapeText = params.text.replace(":", "\\:").replace("'", "\\'")
 
+    fontColor = params.color
+    boxColor = params.boxColor
+    if params.opacity < 1.0:
+        fontColor = f"{fontColor}@{params.opacity}"
+        boxColor = f"{boxColor}@{params.opacity}"
+
     parts = [
         f"drawtext=text={escapeText}",
+        f"fontfile={resolveFontFile(params)}",
         f"fontsize={params.size}",
-        f"fontcolor={params.color}",
+        f"fontcolor={fontColor}",
         f"x={xExpr}",
         f"y={yExpr}",
     ]
 
-    if params.bgColor:
-        parts.append(f"box=1:boxcolor={params.bgColor}@0.6:boxborderw=8")
+    if params.outlineWidth > 0:
+        parts.append(f"bordercolor={params.outlineColor}:borderw={params.outlineWidth}")
+
+    if params.shadowX != 0 or params.shadowY != 0:
+        shadowX = int(params.shadowX) if params.shadowX == int(params.shadowX) else params.shadowX
+        shadowY = int(params.shadowY) if params.shadowY == int(params.shadowY) else params.shadowY
+        parts.append(
+            f"shadowcolor={params.shadowColor}:shadowx={shadowX}:shadowy={shadowY}"
+        )
+
+    if params.box:
+        parts.append(f"box=1:boxcolor={boxColor}:boxborderw={params.boxBorderW}")
+    elif params.bgColor:
+        bgOpacity = params.opacity if params.opacity < 1.0 else 0.6
+        parts.append(f"box=1:boxcolor={params.bgColor}@{bgOpacity}:boxborderw=8")
 
     start = params.startTime
     end = start + (params.duration or videoDuration - start)
     parts.append(f"enable=between(t\\,{start}\\,{end})")
 
     return ":".join(parts)
+
+
+def buildFilterComplexGraph(
+    textLayers: list[TextParams],
+    effectLayers: list[EffectParams],
+    width: int,
+    height: int,
+    duration: float,
+    fps: float,
+) -> tuple[list[str], str]:
+    """Build (extra ffmpeg inputs, filter_complex string) for text/effect overlays.
+
+    Each text layer is drawn onto its own transparent full-frame source, rotated
+    about its center when rotation != 0, then overlaid at width*(x-0.5),
+    height*(y-0.5). The drawtext filter already center-anchors text at (w*x, h*y),
+    so the overlay offset preserves the anchor through rotation.
+    """
+    inputs: list[str] = []
+    graph: list[str] = []
+
+    effectChain = ",".join(buildEffectFilter(e) for e in effectLayers)
+    graph.append(f"[0:v]{effectChain if effectChain else 'null'}[base]")
+
+    cur = "[base]"
+    for i, t in enumerate(textLayers):
+        idx = i + 1
+        inputs.extend(
+            [
+                "-f", "lavfi",
+                "-i", f"color=black@0:s={width}x{height}:d={duration}:r={int(fps)}",
+            ]
+        )
+        layer = buildTextFilter(t, duration)
+        if t.rotation != 0:
+            layer = (
+                f"{layer},rotate={math.radians(t.rotation)}:fillcolor=0x00000000,format=rgba"
+            )
+        graph.append(f"[{idx}:v]{layer}[t{i}]")
+        px = float(t.position.get("x", 0.5))
+        py = float(t.position.get("y", 0.9))
+        ox = width * (px - 0.5)
+        oy = height * (py - 0.5)
+        oxStr = int(ox) if ox == int(ox) else ox
+        oyStr = int(oy) if oy == int(oy) else oy
+        graph.append(f"{cur}[t{i}]overlay=x={oxStr}:y={oyStr}:format=auto[v{i}]")
+        cur = f"[v{i}]"
+
+    return inputs, ";".join(graph)
 
 
 def buildEffectFilter(params: EffectParams) -> str:
