@@ -1,4 +1,8 @@
 import asyncio
+import os
+import subprocess
+import tempfile
+from pathlib import Path
 
 from core.ai.agentic import (
     AgenticRun,
@@ -20,6 +24,20 @@ def _makeAsset(duration: float | None = None) -> Asset:
         mimeType="audio/mpeg",
         duration=duration,
     )
+
+
+def _synthesizeTone() -> Path:
+    outPath = Path(tempfile.mkdtemp()) / "tone.wav"
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "lavfi",
+        "-i", "sine=frequency=440:duration=3",
+        str(outPath),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg tone synthesis failed:\n{result.stderr}")
+    return outPath
 
 
 async def testEvaluateDuration():
@@ -58,16 +76,30 @@ async def testEvaluateDurationUnknown():
 
 async def testEvaluateAsrRoundtrip():
     print("\n" + "=" * 60)
-    print("evaluateAsrRoundtrip (stub)")
+    print("evaluateAsrRoundtrip (real whisper pipeline)")
     print("=" * 60)
 
-    check = evaluateAsrRoundtrip("Hello", _makeAsset())
+    skip = evaluateAsrRoundtrip("Hello world", _makeAsset())
+    print(f"  no-file skip: passed={skip.passed} score={skip.score}")
+    assert skip.passed is True
+    assert skip.score == 1.0
 
-    print(f"  passed: {check.passed}")
-    print(f"  score: {check.score}")
+    if os.environ.get("RUN_ASR_E2E", "0") == "1":
+        tonePath = _synthesizeTone()
+        tone = Asset(
+            id="tone",
+            source="ai",
+            mimeType="audio/wav",
+            localPath=str(tonePath),
+        )
+        check = evaluateAsrRoundtrip("Hello world", tone)
+        print(f"  tone: passed={check.passed} score={check.score}")
+        print(f"  detail: {check.detail}")
+        assert check.passed is False
+        assert check.score < 0.6
+    else:
+        print("  (real ASR run skipped — set RUN_ASR_E2E=1 to exercise whisper)")
 
-    assert check.passed is True
-    assert check.score == 1.0
     print("  ✅ Passed")
 
 

@@ -41,13 +41,13 @@ async def generateMusic(
     prompt: str,
     duration: float = 30.0,
 ) -> GenerationJob:
-    payload = json.dumps({"duration": duration})
+    payload = json.dumps({"prompt": prompt, "duration": duration})
     job = await createJobCore(
         session,
         projectId=projectId,
         tier=1,
         jobType="music",
-        prompt=prompt,
+        prompt=payload,
     )
     _enqueue(job.id)
     return job
@@ -61,13 +61,61 @@ async def generateImage(
     prompt: str,
     size: str | None = None,
 ) -> GenerationJob:
-    payload = json.dumps({"size": size} if size else {})
+    payload: dict = {"prompt": prompt}
+    if size:
+        payload["size"] = size
     job = await createJobCore(
         session,
         projectId=projectId,
         tier=1,
         jobType="image",
-        prompt=prompt,
+        prompt=json.dumps(payload),
+    )
+    _enqueue(job.id)
+    return job
+
+
+async def generateVideo(
+    session: AsyncSession,
+    *,
+    user: UserRow,
+    projectId: str,
+    prompt: str,
+    duration: float = 5.0,
+) -> GenerationJob:
+    payload = json.dumps({"prompt": prompt, "duration": duration})
+    job = await createJobCore(
+        session,
+        projectId=projectId,
+        tier=1,
+        jobType="video",
+        prompt=payload,
+    )
+    _enqueue(job.id)
+    return job
+
+
+async def generateAgentic(
+    session: AsyncSession,
+    *,
+    user: UserRow,
+    projectId: str,
+    script: str,
+    targetDuration: float | None = None,
+) -> GenerationJob:
+    payload: dict = {
+        "jobType": "voiceover",
+        "prompt": script,
+        "script": script,
+    }
+    if targetDuration is not None:
+        payload["targetDuration"] = targetDuration
+    job = await createJobCore(
+        session,
+        projectId=projectId,
+        tier=2,
+        jobType="agentic",
+        prompt=json.dumps(payload),
     )
     _enqueue(job.id)
     return job

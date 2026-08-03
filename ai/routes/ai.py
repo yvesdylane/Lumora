@@ -4,7 +4,14 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai.controllers import ai as aiController
-from ai.schemas import AIJobResponse, ImageRequest, MusicRequest, VoiceoverRequest
+from ai.schemas import (
+    AgenticRequest,
+    AIJobResponse,
+    ImageRequest,
+    MusicRequest,
+    VideoRequest,
+    VoiceoverRequest,
+)
 from auth.middlewares.auth import getCurrentUser
 from auth.models import UserRow
 from core.database import getSession
@@ -56,5 +63,37 @@ async def generateImage(
         projectId=data.projectId,
         prompt=data.prompt,
         size=data.size,
+    )
+    return AIJobResponse(jobId=job.id, status=job.status)
+
+
+@router.post("/video", response_model=AIJobResponse, status_code=status.HTTP_202_ACCEPTED)
+async def generateVideo(
+    data: VideoRequest,
+    user: UserRow = Depends(getCurrentUser),
+    session: AsyncSession = Depends(getSession),
+):
+    job = await aiController.generateVideo(
+        session,
+        user=user,
+        projectId=data.projectId,
+        prompt=data.prompt,
+        duration=data.duration,
+    )
+    return AIJobResponse(jobId=job.id, status=job.status)
+
+
+@router.post("/agentic", response_model=AIJobResponse, status_code=status.HTTP_202_ACCEPTED)
+async def generateAgentic(
+    data: AgenticRequest,
+    user: UserRow = Depends(getCurrentUser),
+    session: AsyncSession = Depends(getSession),
+):
+    job = await aiController.generateAgentic(
+        session,
+        user=user,
+        projectId=data.projectId,
+        script=data.script,
+        targetDuration=data.targetDuration,
     )
     return AIJobResponse(jobId=job.id, status=job.status)

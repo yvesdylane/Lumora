@@ -60,7 +60,7 @@ async def dispatchJob(
 
 
 async def _dispatchTier0(job: GenerationJob) -> dict:
-    from core.ai.llmClient import MockLLMClient
+    from core.ai.llmClient import GenblazeLLMClient
     from core.ai.tier0 import (
         generateCaptions,
         suggestTransition,
@@ -68,7 +68,7 @@ async def _dispatchTier0(job: GenerationJob) -> dict:
         generateMotionSpec,
     )
 
-    client = MockLLMClient()
+    client = GenblazeLLMClient()
     payload = _parsePayload(job.prompt)
 
     if job.jobType == "caption":
@@ -114,19 +114,19 @@ async def _dispatchTier1(job: GenerationJob) -> dict:
         )
     elif job.jobType == "music":
         asset = await generateMusic(
-            prompt=job.prompt,
+            prompt=payload.get("prompt", job.prompt),
             duration=payload.get("duration", 30.0),
             model=payload.get("model"),
         )
     elif job.jobType == "image":
         asset = await generateImage(
-            prompt=job.prompt,
+            prompt=payload.get("prompt", job.prompt),
             model=payload.get("model"),
             size=payload.get("size"),
         )
     elif job.jobType == "video":
         asset = await generateVideo(
-            prompt=job.prompt,
+            prompt=payload.get("prompt", job.prompt),
             model=payload.get("model"),
             duration=payload.get("duration", 5.0),
         )
@@ -141,6 +141,8 @@ async def _dispatchTier1(job: GenerationJob) -> dict:
             "mimeType": asset.mimeType,
             "source": asset.source,
             "duration": asset.duration,
+            "b2Key": asset.b2Key,
+            "localPath": asset.localPath,
         },
     }
 
@@ -153,6 +155,24 @@ def _parsePayload(prompt: str) -> dict:
 
 
 async def _dispatchTier2(session: AsyncSession, job: GenerationJob) -> dict:
+    payload = _parsePayload(job.prompt)
+
+    if job.jobType == "agentic":
+        from core.ai.agentic import agenticResultToDict
+        from core.services.generation import runAgenticGeneration
+
+        result = await runAgenticGeneration(
+            session,
+            job=job,
+            trackId=payload.get("trackId", ""),
+            expected=payload,
+        )
+        return {
+            "tier": 2,
+            "jobType": "agentic",
+            **agenticResultToDict(result),
+        }
+
     import uuid
 
     from core.assets.assets import persistGeneratedAsset
@@ -161,7 +181,6 @@ async def _dispatchTier2(session: AsyncSession, job: GenerationJob) -> dict:
     from core.timeline.projects import getProject
     from models.storage import StoragePrefix
 
-    payload = _parsePayload(job.prompt)
     outputFormat = payload.get("outputFormat", "mp4")
 
     asset = await renderProject(

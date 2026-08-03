@@ -21,6 +21,18 @@ class ImageRequest(BaseModel):
     size: str | None = None
 
 
+class VideoRequest(BaseModel):
+    projectId: str
+    prompt: str
+    duration: float = 5.0
+
+
+class AgenticRequest(BaseModel):
+    projectId: str
+    script: str
+    targetDuration: float | None = None
+
+
 class AIJobResponse(BaseModel):
     jobId: str
     status: str

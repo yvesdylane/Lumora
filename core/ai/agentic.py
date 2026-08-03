@@ -35,6 +35,7 @@ class AgenticResult:
     attempts: int
     runs: list[AgenticRun]
     error: str | None = None
+    layerId: str | None = None
 
 
 def evaluateDuration(script: str, candidate: Asset) -> AgenticCheck:
@@ -62,11 +63,48 @@ def evaluateDuration(script: str, candidate: Asset) -> AgenticCheck:
 
 
 def evaluateAsrRoundtrip(script: str, candidate: Asset) -> AgenticCheck:
+    from core.media.transcribe import transcribeAudio
+
+    if not candidate.localPath and not candidate.b2Key:
+        return AgenticCheck(
+            name="asr_roundtrip",
+            passed=True,
+            score=1.0,
+            detail="skipped — no local file available",
+        )
+
+    try:
+        words = transcribeAudio(candidate)
+    except Exception as e:
+        return AgenticCheck(
+            name="asr_roundtrip",
+            passed=False,
+            score=0.0,
+            detail=f"transcription failed: {e}",
+        )
+
+    transcript = " ".join(w.word for w in words).strip().lower()
+    expected = script.strip().lower()
+
+    if not expected or not transcript:
+        return AgenticCheck(
+            name="asr_roundtrip",
+            passed=False,
+            score=0.3,
+            detail="no speech recovered from candidate",
+        )
+
+    expectedWords = set(expected.split())
+    spokenWords = set(transcript.split())
+    recovered = len(expectedWords & spokenWords) / len(expectedWords)
+    score = min(1.0, recovered * 1.25)
+    passed = recovered >= 0.6
+
     return AgenticCheck(
         name="asr_roundtrip",
-        passed=True,
-        score=1.0,
-        detail="stub — ASR not implemented yet",
+        passed=passed,
+        score=score,
+        detail=f"{recovered:.0%} of script words recovered by ASR",
     )
 
 
@@ -99,6 +137,42 @@ def decide(run: AgenticRun) -> Literal["store", "retry", "escalate"]:
     if run.score >= RETRY_THRESHOLD:
         return "retry"
     return "escalate"
+
+
+def agenticResultToDict(result: AgenticResult) -> dict:
+    """Serialize an AgenticResult for a job's completion payload."""
+    return {
+        "decision": result.decision,
+        "attempts": result.attempts,
+        "error": result.error,
+        "layerId": result.layerId,
+        "runs": [
+            {
+                "score": run.score,
+                "decision": run.decision,
+                "checks": [
+                    {
+                        "name": check.name,
+                        "passed": check.passed,
+                        "score": check.score,
+                        "detail": check.detail,
+                    }
+                    for check in run.checks
+                ],
+            }
+            for run in result.runs
+        ],
+        "asset": (
+            {
+                "id": result.asset.id,
+                "mimeType": result.asset.mimeType,
+                "source": result.asset.source,
+                "duration": result.asset.duration,
+            }
+            if result.asset
+            else None
+        ),
+    }
 
 
 async def runAgenticLoop(

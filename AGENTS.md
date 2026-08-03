@@ -14,11 +14,15 @@ uv run python main.py       # dev server on :8000
 
 Use `uv` exclusively. Never `pip`. Add deps with `uv add <pkg>`.
 
-## Run single test / lint
+## Run a test
 
-No test suite or linter configured yet. When added, prefer:
+Standalone scripts at the repo root, NOT pytest. Each has `if __name__ == "__main__": asyncio.run(test())`:
 ```bash
-uv run pytest tests/test_<name>.py -k <test_name>
+uv run python test_timeline.py   # timeline/track/layer CRUD — needs Postgres at DATABASE_URL + migrations applied
+uv run python test_tier0.py      # AI tier0 with MockLLMClient (no network)
+uv run python test_tier1.py
+uv run python test_agentic.py
+uv run python test.py
 ```
 
 ## Architecture (read `functions_architecture.md`)
@@ -36,7 +40,7 @@ Source of truth for all module boundaries and function signatures. Key invariant
   - Return typed Pydantic models, not `dict` from core functions.
   - Use typed param objects (`TextLayerParams`, `EffectParams`, etc.) instead of `params: dict`.
   - Renderer should accept a timeline object, not a timeline ID (keeps renderer DB-free).
-  - Add a cache manager layer in `storage/` between download and local use.
+  - Cache manager in `core/storage/cache.py` (`cachePathFor`, `writeCacheBytes`) — done; use it for B2 downloads.
   - `models/` directory is for domain models (`Project`, `Timeline`, `Track`, `Layer`, `Asset`, `GenerationJob`, `AgenticRun`), not DB ORM models.
 
 ## Build order
@@ -50,19 +54,20 @@ Source of truth for all module boundaries and function signatures. Key invariant
 ## Project structure
 
 ```
+auth/ assets/ ai/ jobs/ exports/   # feature packages: routes/ + controllers/ + schemas.py (HTTP layer)
 core/           # domain logic (no HTTP concerns)
   assets/       # asset lifecycle
-  media/        # ffmpeg ops + effects/
+  media/        # ffmpeg ops + effects/ + transitions/
   timeline/     # projects, tracks, layers (DB state)
   renderer/     # orchestrates timeline + media
-  storage/      # B2 upload/download, staging, manifests
-  jobs/         # async job orchestration
-  ai/           # tier0 (LLM reasoning), tier1 (generation), agentic (loop)
+  storage/      # B2 upload/download, staging, cache, manifests
+  jobs/         # celery app, tasks, dispatcher, notifications
+  ai/           # tier0 (LLM reasoning), tier1 (generation), agentic (loop), llmClient
   services/     # thin cross-module glue only
-routes/         # FastAPI routers
-controllers/    # request/response handling
-middlewares/    # FastAPI middleware
-models/         # domain models (Pydantic)
+routes/         # root-level FastAPI routers (projects, tracks, layers)
+controllers/    # request/response handling (projects, tracks, layers)
+middlewares/    # requestId, errorHandler (+ auth/middlewares/ for JWT)
+models/         # domain models (Pydantic): Project, Timeline, TimelineDetail, ...
 utils/          # shared helpers
 main.py         # FastAPI app entrypoint
 ```

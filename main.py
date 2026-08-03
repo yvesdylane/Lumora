@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from ai.routes.ai import router as aiRouter
+from ai.routes.transcribe import router as transcribeRouter
 from assets.routes.assets import router as assetsRouter
 from auth.routes.auth import router as authRouter
 from core.jobs.notifications import startSubscriber, stopSubscriber
@@ -52,6 +53,7 @@ app.include_router(layersRouter)
 app.include_router(jobsRouter)
 app.include_router(wsRouter)
 app.include_router(aiRouter)
+app.include_router(transcribeRouter)
 
 
 @app.get("/")
